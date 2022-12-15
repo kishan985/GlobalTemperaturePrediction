@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as pp
 import sqlite3
 from sqlite3 import Error
+from datetime import datetime
 
 #GlobalVariables
 db_file_name = 'normalized_Temperature.db'
@@ -56,6 +57,8 @@ with open('GlobalLandTemperaturesByMajorCity.csv', 'r') as file:
             continue
         MajorCities.append(line.strip().split(',')[0:5])
 
+# print(datetime.strptime(MajorCities[0][0], '%Y-%m-%d').strftime('%Y-%m-%d'))
+
 conn = create_connection(db_file_name)
 cur = conn.cursor()
 
@@ -70,11 +73,11 @@ query = '''CREATE TABLE [GlobalLandTemperatureByMajorCity](
 create_table(conn, query)
 majorcityrecords = []
 for i in range(len(MajorCities)):
-    if int(MajorCities[i][0][0:4]) < 1900:
+    if int(MajorCities[i][0][0:4]) < 1850:
         continue
     if MajorCities[i][1] == '' or MajorCities[i][2] == '':
         continue
-    majorcityrecords.append((MajorCities[i][0], MajorCities[i][3], MajorCities[i][4], round(float(MajorCities[i][1]), 2), round(float(MajorCities[i][2]),2)))
+    majorcityrecords.append((datetime.strptime(MajorCities[i][0], '%Y-%m-%d').strftime('%Y-%m-%d'), MajorCities[i][3], MajorCities[i][4], round(float(MajorCities[i][1]), 2), round(float(MajorCities[i][2]),2)))
 
 with conn:
     cur.executemany('''INSERT INTO GlobalLandTemperatureByMajorCity(Date, City, Country, AverageTemperature, AverageTemperatureUncertainity)
@@ -101,11 +104,11 @@ query = '''CREATE TABLE [GlobalLandTemperatureByCountry](
 create_table(conn, query)
 countryrecords = []
 for i in range(len(Countries)):
-    if int(Countries[i][0][0:4]) < 1900:
+    if int(Countries[i][0][0:4]) < 1850:
         continue
     if Countries[i][1] == '' or Countries[i][2] == '':
         continue
-    countryrecords.append((Countries[i][0], Countries[i][3], round(float(Countries[i][1]), 2), round(float(Countries[i][2]), 2)))
+    countryrecords.append((datetime.strptime(Countries[i][0], '%Y-%m-%d').strftime('%Y-%m-%d'), Countries[i][3], round(float(Countries[i][1]), 2), round(float(Countries[i][2]), 2)))
 
 with conn:
     cur.executemany('''INSERT INTO GlobalLandTemperatureByCountry(Date, Country, AverageTemperature, AverageTemperatureUncertainity)
@@ -131,11 +134,11 @@ query = '''CREATE TABLE [GlobalTemperatures](
 create_table(conn, query)
 globalrecords = []
 for i in range(len(GlobalTemperatures)):
-    if int(GlobalTemperatures[i][0][0:4]) < 1900:
+    if int(GlobalTemperatures[i][0][0:4]) < 1850:
         continue
     if GlobalTemperatures[i][1] == '' or GlobalTemperatures[i][2] == '':
         continue
-    globalrecords.append((GlobalTemperatures[i][0], round(float(GlobalTemperatures[i][1]), 2), round(float(GlobalTemperatures[i][2]), 2)))
+    globalrecords.append((datetime.strptime(GlobalTemperatures[i][0], '%Y-%m-%d').strftime('%Y-%m-%d'), round(float(GlobalTemperatures[i][1]), 2), round(float(GlobalTemperatures[i][2]), 2)))
 
 with conn:
     cur.executemany('''INSERT INTO GlobalTemperatures(Date, AverageTemperature, AverageTemperatureUncertainity)
@@ -144,6 +147,8 @@ with conn:
 '''Select CAST(strftime('%Y',Date)  AS INT) AS Year, Country, AverageTemperature, 
     AverageTemperatureUncertainity from GlobalLandTemperatureByCountry GROUP BY Year, 
     Country ORDER BY Country;'''
+
+
 
 
 
