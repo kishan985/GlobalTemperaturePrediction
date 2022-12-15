@@ -81,6 +81,8 @@ with conn:
     cur.executemany('''INSERT INTO GlobalLandTemperatureByMajorCity(Date, City, Country, AverageTemperature, AverageTemperatureUncertainity)
                         VALUES (?,?,?,?,?)''', majorcityrecords)
 
+print('Check')
+
 
 
 
