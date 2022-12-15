@@ -47,7 +47,7 @@ def execute_sql_statement(sql_statement, conn):
 
 header = None
 MajorCities = []
-with open('archive/GlobalLandTemperaturesByMajorCity.csv', 'r') as file:
+with open('GlobalLandTemperaturesByMajorCity.csv', 'r') as file:
     for line in file:
         if not line.strip(): # used for skipping empty lines!
             continue
