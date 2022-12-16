@@ -130,7 +130,7 @@ query = '''CREATE TABLE [GlobalLandTemperatureByMajorCity](
                 [CountryID] INTEGER NOT NULL,
                 [AverageTemperature] REAL,
                 [AverageTemperatureUncertainity] REAL,
-                FOREIGN KEY(CityID) REFERENCES MajorCities(CityID)
+                FOREIGN KEY(CityID) REFERENCES MajorCities(CityID),
                 FOREIGN KEY(CountryID) REFERENCES Country(CountryID)
                 )
             '''
@@ -148,6 +148,7 @@ with conn:
     cur.executemany('''INSERT INTO GlobalLandTemperatureByMajorCity(Date, CityID, CountryID, AverageTemperature, AverageTemperatureUncertainity)
                         VALUES (?,?,?,?,?)''', majorcityrecords)
 
+# Creating GlobalLandTemperatureByCountry table
 header = None
 Countries = []
 with open('GlobalLandTemperaturesByCountry.csv', 'r') as file:
@@ -162,9 +163,10 @@ with open('GlobalLandTemperaturesByCountry.csv', 'r') as file:
 query = '''CREATE TABLE [GlobalLandTemperatureByCountry](
                 [ID] INTEGER NOT NULL PRIMARY KEY,
                 [Date] VARCHAR NOT NULL,
-                [Country] INTEGER NOT NULL,
+                [Country] TEXT NOT NULL,
                 [AverageTemperature] REAL,
                 [AverageTemperatureUncertainity] REAL)
+
             '''
 create_table(conn, query)
 countryrecords = []
@@ -212,15 +214,19 @@ with conn:
 # '''Select CAST(strftime('%Y',Date)  AS INT) AS Year, Country, AverageTemperature, 
 #     AverageTemperatureUncertainity from GlobalLandTemperatureByMajorCity GROUP BY Year, 
 #     City, Country ORDER BY City, Country;'''
+# CAST(strftime('%Y',Date)  AS INT) AS Year
 
-# df_majorcities = pd.read_sql_query('''Select CAST(strftime('%Y',Date)  AS INT) AS Year, City, Country, AverageTemperature, 
-#     AverageTemperatureUncertainity 
-# 	FROM GlobalLandTemperatureByMajorCity 
-# 	WHERE city in ('Bangalore', 'Bangkok', 'Paris', 'Harbin', 'Montreal', 'Moscow', 'Kiev', 'Toronto', 
-#     'Saint Petersburg', 'Tokyo', 'Berlin', 'Istanbul', 'Karachi', 'Dhaka', 'Rome', 'NewYork', 'Durban', 
-#     'Kano', 'Baghdad', 'Melbourne', 'Madrid', 'London', 'Berlin', 'Taiyuan', 'Florida')
-# 	GROUP BY Year, City, Country 
-# 	ORDER BY City, Country''', conn)
+df_majorcities_query = '''Select CAST(strftime('%Y',Date)  AS INT) AS Year, MajorCities.CityName, Country.Country, AverageTemperature, 
+                            AverageTemperatureUncertainity 
+	                        FROM GlobalLandTemperatureByMajorCity 
+	                        INNER JOIN MajorCities ON GlobalLandTemperatureByMajorCity .CityID = MajorCities.CityID
+	                        INNER JOIN Country ON GlobalLandTemperatureByMajorCity.CountryID=Country.CountryID
+	                        WHERE MajorCities.CityName in ('Bangalore', 'Bangkok', 'Paris', 'Harbin', 'Montreal', 'Moscow', 'Kiev', 'Toronto', 'Saint Petersburg', 'Tokyo', 'Berlin', 'Istanbul', 'Karachi', 'Dhaka', 'Rome', 'NewYork', 'Durban', 'Kano', 'Baghdad', 'Melbourne', 'Madrid', 'London', 'Berlin', 'Taiyuan', 'Florida')
+	                        GROUP BY Year, MajorCities.CityName, Country.Country
+	                        ORDER BY MajorCities.CityName, Country.Country'''
+
+df_majorcities = pd.read_sql_query(df_majorcities_query, conn)
+#print(df_majorcities)
 
 Top25Cities = ['Bangalore', 'Bangkok', 'Paris', 'Harbin', 'Montreal', 'Moscow', 'Kiev', 'Toronto', 
     'Saint Petersburg', 'Tokyo', 'Berlin', 'Istanbul', 'Karachi', 'Dhaka', 'Rome', 'NewYork', 'Durban', 
@@ -230,7 +236,7 @@ def checkStationarity(data):
     data.index = data['Year']
     pp.plot(data.index, data['AverageTemperature'])
     #pp.legend(loc='best')
-    pp.title("Average Temperature of Major Cities from 1850 to 2013")
+    pp.title("Average Temperature of Major Cities from 1900 to 2013")
     pp.show()
 
     # Function to print out results in customised manner
@@ -238,15 +244,15 @@ def checkStationarity(data):
     from statsmodels.tsa.stattools import adfuller
 
     Temps = data['AverageTemperature'].values
-    # split = len(Temps)//2
-    # Temps1, Temps2 = Temps[0:split], Temps[split:]
-    # meanTemps1, meanTemps2 = Temps1.mean(), Temps2.mean()
-    # varTemps1, varTemps2 = Temps1.var(), Temps2.var()
+    split = len(Temps)//2
+    Temps1, Temps2 = Temps[0:split], Temps[split:]
+    meanTemps1, meanTemps2 = Temps1.mean(), Temps2.mean()
+    varTemps1, varTemps2 = Temps1.var(), Temps2.var()
 
-    # if abs(meanTemps1-meanTemps2) <= 10 and abs(varTemps1-varTemps2) <= 10:
-    #     print('This indicates the given timeseries might be stationary as the mean and variance does not differ much.')
-    # else:
-    #     print('Given timeseries might not be stationary.')
+    if abs(meanTemps1-meanTemps2) <= 10 and abs(varTemps1-varTemps2) <= 10:
+        print('This indicates the given timeseries might be stationary as the mean and variance does not differ much.')
+    else:
+        print('Given timeseries might not be stationary.')
 
     #Performing Augmented Dickey-Fuller Test to confirm stationarity
     AdfullerResult = adfuller(Temps)
@@ -258,33 +264,10 @@ def checkStationarity(data):
         return 'Time series is not stationary'
 
 # for c in Top25Cities:
-#     data = pd.read_sql_query('''Select CAST(strftime('%Y',Date)  AS INT) AS Year, City, Country, AverageTemperature, 
-#     AverageTemperatureUncertainity 
-# 	FROM GlobalLandTemperatureByMajorCity 
-# 	WHERE City = '''+str(c)+'''
-# 	GROUP BY Year, City, Country 
-# 	ORDER BY City, Country;''', conn)
+#     data = df_majorcities['CityName']
 #     print(data)
 
-#df_majorcities.drop('ID', axis = 1)
-#print(df_majorcities)
-#print(df_majorcities.shape)
-# df_majorcities.index = df_majorcities['Year']
-# pp.plot(df_majorcities.index, df_majorcities['AverageTemperature'])
-# #pp.legend(loc='best')
-# pp.title("Average Temperature of Major Cities from 1850 to 2013")
-# pp.show()
-
-# # Function to print out results in customised manner
-
-# from statsmodels.tsa.stattools import adfuller
-
-# Temps = df_majorcities['AverageTemperature'].values
-# AdfullerResult = adfuller(Temps)
-# print(AdfullerResult[1])
-# p_value = AdfullerResult[1]
-# if p_value < 0.05:
-#     print('Time series is stationary')
+print(checkStationarity(df_majorcities))
 
 
 
