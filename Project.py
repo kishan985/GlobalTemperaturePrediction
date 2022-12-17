@@ -216,31 +216,32 @@ with conn:
 #     City, Country ORDER BY City, Country;'''
 # CAST(strftime('%Y',Date)  AS INT) AS Year
 
-df_majorcities_query = '''Select CAST(strftime('%Y',Date)  AS INT) AS Year, MajorCities.CityName, Country.Country, AverageTemperature, 
+df_majorcities_query = '''Select Date, MajorCities.CityName, Country.Country, AverageTemperature, 
                             AverageTemperatureUncertainity 
 	                        FROM GlobalLandTemperatureByMajorCity 
 	                        INNER JOIN MajorCities ON GlobalLandTemperatureByMajorCity .CityID = MajorCities.CityID
 	                        INNER JOIN Country ON GlobalLandTemperatureByMajorCity.CountryID=Country.CountryID
-	                        WHERE MajorCities.CityName in ('Bangalore', 'Bangkok', 'Paris', 'Harbin', 'Montreal', 'Moscow', 'Kiev', 'Toronto', 'Saint Petersburg', 'Tokyo', 'Berlin', 'Istanbul', 'Karachi', 'Dhaka', 'Rome', 'NewYork', 'Durban', 'Kano', 'Baghdad', 'Melbourne', 'Madrid', 'London', 'Berlin', 'Taiyuan', 'Florida')
-	                        GROUP BY Year, MajorCities.CityName, Country.Country
+	                        WHERE MajorCities.CityName in ('Bangkok', 'Paris', 'Montreal', 'Moscow', 'Kiev', 'Toronto', 
+                                'Saint Petersburg', 'Tokyo', 'Berlin', 'Istanbul', 'Dhaka', 'Rome', 
+                                'Kano', 'Baghdad', 'Melbourne', 'Madrid', 'London', 'Berlin', 'Taiyuan', 'Bangalore', 'Harbin', 'Karachi', 'Durban')
+	                        GROUP BY Date, MajorCities.CityName, Country.Country
 	                        ORDER BY MajorCities.CityName, Country.Country'''
 
 df_majorcities = pd.read_sql_query(df_majorcities_query, conn)
 #print(df_majorcities)
 
-Top25Cities = ['Bangalore', 'Bangkok', 'Paris', 'Harbin', 'Montreal', 'Moscow', 'Kiev', 'Toronto', 
-    'Saint Petersburg', 'Tokyo', 'Berlin', 'Istanbul', 'Karachi', 'Dhaka', 'Rome', 'NewYork', 'Durban', 
-    'Kano', 'Baghdad', 'Melbourne', 'Madrid', 'London', 'Berlin', 'Taiyuan', 'Florida']
+Top20Cities = ['Bangkok', 'Paris', 'Montreal', 'Moscow', 'Kiev', 'Toronto', 
+    'Saint Petersburg', 'Tokyo', 'Berlin', 'Istanbul', 'Dhaka', 'Rome', 
+    'Kano', 'Baghdad', 'Melbourne', 'Madrid', 'London', 'Berlin', 'Taiyuan', 'Bangalore']
 
 def checkStationarity(data):
-    data.index = data['Year']
-    pp.plot(data.index, data['AverageTemperature'])
-    #pp.legend(loc='best')
-    pp.title("Average Temperature of Major Cities from 1900 to 2013")
-    pp.show()
+    data.index = data['Date']
+    # pp.plot(data.index, data['AverageTemperature'])
+    # #pp.legend(loc='best')
+    # pp.title("Average Temperature from 1900 to 2013")
+    #pp.show()
 
     # Function to print out results in customised manner
-
     from statsmodels.tsa.stattools import adfuller
 
     Temps = data['AverageTemperature'].values
@@ -263,12 +264,69 @@ def checkStationarity(data):
     else:
         return 'Time series is not stationary'
 
-# for c in Top25Cities:
-#     data = df_majorcities['CityName']
-#     print(data)
+for c in Top20Cities:
+    filter = df_majorcities.CityName == c
+    city = df_majorcities.where(filter)
+    print('For ' + c + ' :' + checkStationarity(city.dropna()))
 
+#print(checkStationarity(df_majorcities))
+
+from statsmodels.graphics.tsaplots import plot_pacf
+from statsmodels.graphics.tsaplots import plot_acf
+plot_pacf(df_majorcities['AverageTemperature'].diff().dropna())
+pp.show()
+plot_acf(df_majorcities['AverageTemperature'].diff().dropna())
+pp.show()
+
+def apply_arima_model(data):
+    import warnings
+    from pmdarima import auto_arima
+    warnings.filterwarnings("ignore")
+    # stepwise_fit = auto_arima(data['AverageTemperature'], suppress_warnings=True)
+
+    # Our best mode, order is (0, 1, 1)
+    shape = data.shape[0]
+
+    # dividing into test and train
+    train=data.iloc[:(int(0.7*shape))]
+    test=data.iloc[-(int(0.3*shape)):]
+
+    # building the model order = [p,d,q]
+    from statsmodels.tsa.arima.model import ARIMA
+    model=ARIMA(train['AverageTemperature'],order=(2,0,3))
+    model=model.fit()
+    print(model.summary())
+    start = 0
+    end = len(train)+len(test)-1
+    pred = model.predict(start=start, end=len(train)+len(test)-1)
+    pp.plot(data["Date"][:100], data['AverageTemperature'][:100])
+    pp.plot(data["Date"][start:end+1][:100], pred[:100] )
+    pp.savefig('Plot.png')
+    pp.show()
+
+# for c in Top25Cities:
+#     filter = df_majorcities.CityName == c
+#     city = df_majorcities.where(filter)
+#     print('For ' + c + ' :' + checkStationarity(city.dropna()))
+#     apply_arima_model(city)
+# , 'Paris', 'Harbin', 'Montreal', 'Moscow', 'Kiev', 
 print(checkStationarity(df_majorcities))
 
+df_6majorcities_query = '''Select Date, MajorCities.CityName, Country.Country, AverageTemperature, 
+                            AverageTemperatureUncertainity 
+	                        FROM GlobalLandTemperatureByMajorCity 
+	                        INNER JOIN MajorCities ON GlobalLandTemperatureByMajorCity .CityID = MajorCities.CityID
+	                        INNER JOIN Country ON GlobalLandTemperatureByMajorCity.CountryID=Country.CountryID
+	                        WHERE MajorCities.CityName in ('Bangkok')
+	                        GROUP BY Date, MajorCities.CityName, Country.Country
+	                        ORDER BY MajorCities.CityName, Country.Country'''
+df_6majorcities = pd.read_sql_query(df_majorcities_query, conn)
+
+filter = df_majorcities.CityName == 'Bangkok'
+city = df_majorcities.where(filter)
+# apply_arima_model(city)
+checkStationarity(df_6majorcities)
+apply_arima_model(df_6majorcities)
 
 
 
